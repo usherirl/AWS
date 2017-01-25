@@ -1,0 +1,13 @@
+# Query the vpc's and return their vpc-id
+aws ec2 describe-vpcs --query 'Vpcs[*].{ID:VpcId}' --output table
+
+# Find VPC's that have no instances associated.
+# List all VPC's in the account
+aws ec2 describe-vpcs --query 'Vpcs[*].VpcId' --output text | tr '\t' '\n' | sort
+# List all vpc's associated with an instance then piped to sort then uniq
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].VpcId' --output text | tr '\t' '\n' | sort | uniq
+# Combine both results to identify vpc's that have no instances associated
+comm -23 <(aws ec2 describe-vpcs --query 'Vpcs[*].VpcId' --output text | tr '\t' '\n' | sort) <(aws ec2 describe-instances --query 'Reservations[*].Instances[*].VpcId' --output text | tr '\t' '\n' | sort | uniq)
+
+# Query for unused vpc id's and display their attributes
+comm -23 <(aws ec2 describe-vpcs --query Vpcs[*].[VpcId] --output text | tr '\t' '\n' | sort) <(aws ec2 describe-instances --query Reservations[*].Instances[*].[VpcId] --output text | tr '\t' '\n' | sort | uniq) | xargs -I {} aws ec2 describe-vpcs --filters Name=vpc-id,Values={}
