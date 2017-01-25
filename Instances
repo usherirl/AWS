@@ -1,1 +1,23 @@
+# Return instances with the main tags
 aws ec2 describe-instances --query 'Reservations[*].Instances[*].[[Tags[?Key==`Name`].Value][0][0],[Tags[?Key==`Owner`].Value][0][0],[Tags[?Key==`Creator`].Value][0][0],[Tags[?Key==`Dept Code`].Value][0][0],InstanceId,ImageId,State.Name,InstanceType,Placement.AvailabilityZone,PrivateIpAddress,PrivateDnsName,PublicDnsName,SecurityGroups[*].{Name:GroupName,ID:GroupId}]' --output table
+
+# Instances with Index Names in dictionary notation with no ordering
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[{VPCID:VpcId},{OperatingSystem:Platform},{Name:[Tags[?Key==`Name`].Value][0][0]},{Owner:[Tags[?Key==`Owner`].Value][0][0]},{Creator:[Tags[?Key==`Creator`].Value][0][0]},{Department:[Tags[?Key==`Dept Code`].Value][0][0]},{InstanceID:InstanceId},{ImageID:ImageId},{RunningState:State.Name},{Instancetype:InstanceType},{AvailabilityZone:Placement.AvailabilityZone},{PrivateIP:PrivateIpAddress},{PrivateDNS:PrivateDnsName},{PublicDNS:PublicDnsName},SecurityGroups[*].{SecurityGroupName:GroupName},SecurityGroups[*].{SecurityGroupID:GroupId}]' --output json
+
+# Instances in list notation with no ordering
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[{VPCID:VpcId,OperatingSystem:Platform,Name:[Tags[?Key==`Name`].Value][0][0],Owner:[Tags[?Key==`Owner`].Value][0][0],Creator:[Tags[?Key==`Creator`].Value][0][0],Department:[Tags[?Key==`Dept Code`].Value][0][0],InstanceID:InstanceId,ImageID:ImageId,RunningState:State.Name,Instancetype:InstanceType,AvailabilityZone:Placement.AvailabilityZone,PrivateIP:PrivateIpAddress,PrivateDNS:PrivateDnsName,PublicDNS:PublicDnsName},SecurityGroups[*].{Name:GroupName,ID:GroupId}]' --output json
+
+# Instances in list notation piped to JQ for formatting
+aws ec2 describe-instances --output json | jq '.Reservations[].Instances[] | (.Tags | from_entries) as $tags | select($tags.Owner != null) | {VPCID: .VpcId, OperatingSystem: .Platform, Name: $tags.Name, Owner: $tags.Owner, Creator: $tags."Creator", Department: $tags."Dept Code", InstanceID: .InstanceId, ImageID: .ImageId, RunningState: .State.Name, InstanceType: .InstanceType, AvailabilityZone: .Placement.AvailabilityZone, PrivateIP: .PrivateIpAddress, PrivateDNS: .PrivateDnsName}'
+
+# Instances filtered to only show a particular vpc-d
+aws ec2 describe-instances --filters Name=vpc-id,Values=<vpc-id>
+
+# Instances filtered to only show a particular vpc-d and queried for all instance names
+aws ec2 describe-instances --filters Name=vpc-id,Values=<vpc-id> --query 'Reservations[*].Instances[*].[[Tags[?Key==`Name`].Value][0][0]]'
+
+# Filter vpc-id and query for certain tags
+aws ec2 describe-instances --filters Name=vpc-id,Values=<vpc-id> --query 'Reservations[*].Instances[*].{Name:[Tags[?Key==`Name`].Value][0][0],Owner:[Tags[?Key==`Owner`].Value][0][0],Creator:[Tags[?Key==`Creator`].Value][0][0]}' --output table
+
+# Filter vpc-id and JQ main tags out
+aws ec2 describe-instances --filters Name=vpc-id,Values=<vpc-id> --output json | jq '.Reservations[].Instances[] | (.Tags | from_entries) as $tags | select($tags.Owner != null) | {VPCID: .VpcId, OperatingSystem: .Platform, Name: $tags.Name, Owner: $tags.Owner, Creator: $tags."Creator", Department: $tags."Dept Code", InstanceID: .InstanceId, ImageID: .ImageId, RunningState: .State.Name, InstanceType: .InstanceType, AvailabilityZone: .Placement.AvailabilityZone, PrivateIP: .PrivateIpAddress, PrivateDNS: .PrivateDnsName}'
