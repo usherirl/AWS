@@ -1,5 +1,5 @@
 # AWS
-A list of useful AWS CLI commands
+A list of useful AWS CLI commands that can be used to query EC2 instances.
 
 # Prerequisites  
 
