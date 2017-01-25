@@ -1,0 +1,33 @@
+# Check Security groups that allow SSH from 0.0.0.0/0
+aws ec2 describe-security-groups --filters Name=ip-permission.from-port,Values=22 Name=ip-permission.to-port,Values=22 Name=ip-permission.cidr,Values='0.0.0.0/0' --query 'SecurityGroups[*].{Name:GroupName}' --output json
+
+# Check Security groups against the instance id
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].[{Name:[Tags[?Key==`Name`].Value][0][0]},{InstanceID:InstanceId},SecurityGroups[*].{SecurityGroupName:GroupName},SecurityGroups[*].{SecurityGroupID:GroupId}]' --output json
+
+# Check Security groups for Name, ID and IP Permissions
+aws ec2 describe-security-groups --query 'SecurityGroups[*].{Name:GroupName,ID:GroupId,Description:Description,Rules:IpPermissions}' --output json
+
+# Find security groups created but not assigned against an instance
+# List all security groups
+aws ec2 describe-security-groups --query 'SecurityGroups[*].GroupId' --output text | tr '\t' '\n' | sort
+# List all security groups tied to an instance then piped to sort then uniq
+aws ec2 describe-instances --query 'Reservations[*].Instances[*].SecurityGroups[*].GroupID' --output text | tr '\t' '\n' | sort | uniq 
+# Combine both results to identity security groups not tied to instances.
+comm -23  <(aws ec2 describe-security-groups --query 'SecurityGroups[*].GroupId' --output text | tr '\t' '\n' | sort) <(aws ec2 describe-instances --query 'Reservations[*].Instances[*].SecurityGroups[*].GroupID' --output text | tr '\t' '\n' | sort | uniq)
+
+# Query for security group id's that are not used against ec2 instances and display details.
+comm -23 <(aws ec2 describe-security-groups --query SecurityGroups[*].[GroupId] --output text | tr '\t' '\n' | sort) <(aws ec2 describe-instances --query 'Reservations[*].Instances[*].SecurityGroups[*].[GroupId]' --output text | tr '\t' '\n' | sort | uniq) | xargs -I {} aws ec2 describe-security-groups --filters "Name=group-id,Values={}"
+# Same as above but outputs only the GroupName,GroupId and Description. Sends this to a text file.
+comm -23 <(aws ec2 describe-security-groups --query SecurityGroups[*].[GroupId] --output text | tr '\t' '\n' | sort) <(aws ec2 describe-instances --query 'Reservations[*].Instances[*].SecurityGroups[*].[GroupId]' --output text | tr '\t' '\n' | sort | uniq) | xargs -I {} aws ec2 describe-security-groups --filters "Name=group-id,Values={}" --query 'SecurityGroups[*].[GroupName,GroupId,Description]' --output text >> UnusedSecurityGroups.txt
+
+# Security groups queries for ELB's
+aws elb describe-load-balancers --output json | jq -c -r ".LoadBalancerDescriptions[].SecurityGroups" | tr -d "\"[]\"" | sort | uniq
+
+# Access from 0.0.0.0/0 all ports/protocols
+aws ec2 describe-security-groups --filters Name=ip-permission.cidr,Values='0.0.0.0/0' --query SecurityGroups[*].[GroupId] --output text | tr '\t' '\n' | sort | uniq | xargs -I {} aws ec2 describe-instances --filters "Name=instance.group-id,Values={}" --query 'Reservations[*].Instances[*].[[Tags[?Key==`Name`].Value][0][0],[Tags[?Key==`Owner`].Value][0][0],[Tags[?Key==`Creator`].Value][0][0],[Tags[?Key==`Dept Code`].Value][0][0]]' --output text
+ 
+# Access from 0.0.0.0/0 on port 22 SSH
+aws ec2 describe-security-groups --filters Name=ip-permission.from-port,Values=22 Name=ip-permission.to-port,Values=22 Name=ip-permission.cidr,Values='0.0.0.0/0' --query SecurityGroups[*].[GroupId] --output text | tr '\t' '\n' | sort | uniq | xargs -I {} aws ec2 describe-instances --filters "Name=instance.group-id,Values={}" --query 'Reservations[*].Instances[*].[[Tags[?Key==`Name`].Value][0][0],[Tags[?Key==`Owner`].Value][0][0],[Tags[?Key==`Creator`].Value][0][0],[Tags[?Key==`Dept Code`].Value][0][0]]' --output text
+ 
+# Access from 0.0.0.0/0 on port 3389 RDP
+aws ec2 describe-security-groups --filters --filters Name=ip-permission.from-port,Values=3389 Name=ip-permission.to-port,Values=3389 Name=ip-permission.cidr,Values='0.0.0.0/0' --query SecurityGroups[*].[GroupId] --output text | tr '\t' '\n' | sort | uniq | xargs -I {} aws ec2 describe-instances --filters "Name=instance.group-id,Values={}" --query 'Reservations[*].Instances[*].[[Tags[?Key==`Name`].Value][0][0],[Tags[?Key==`Owner`].Value][0][0],[Tags[?Key==`Creator`].Value][0][0],[Tags[?Key==`Dept Code`].Value][0][0]]' --output text
