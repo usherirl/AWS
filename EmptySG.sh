@@ -44,9 +44,6 @@ do
     aws ec2 describe-security-groups --region $line --query 'SecurityGroups[?GroupName==`default`].[GroupId]' --output $OUTPUTFORMAT | tr \t \n | sort > $OUTPUTDIR/$line$SecGroupIDNonDefault.$FILEFORMAT
     comm -23 $OUTPUTDIR/$line$Merge3.$FILEFORMAT $OUTPUTDIR/$line$SecGroupIDNonDefault.$FILEFORMAT | xargs -I {} aws ec2 describe-security-groups --region $line --filters "Name=group-id,Values={}" --query 'SecurityGroups[*].[GroupId]' --output text >> $OUTPUTDIR/$line$Merge4.$FILEFORMAT
  
-    # Send Group ID's for deletion. Skip id's where an error occurs and output to a file.
-    # cat $OUTPUTDIR/$Merge4.$FILEFORMAT | xargs -I {} aws ec2 --profile $AdminProfile delete-security-group --group-id {}
- 
     # Emailing List of Security Groups to be investigated for deletion
     cat $OUTPUTDIR/$line$Merge4.$FILEFORMAT | xargs -I {} aws ec2 describe-security-groups --region $line --filters "Name=group-id,Values={}" --query 'SecurityGroups[*].[GroupName,GroupId,Description]' --output text >> $OUTPUTDIR/$line$Email.$FILEFORMAT
   if [ `ls -l $OUTPUTDIR/$line$Email.$FILEFORMAT | awk '{print $5}'` -eq 0 ]
